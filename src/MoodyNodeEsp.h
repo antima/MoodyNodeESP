@@ -2,18 +2,20 @@
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
 
-#include <type_traits>
+#include <ArxTypeTraits.h>
 
 #define WEB_SERVER_PORT    80
 #define MAX_PAYLOAD_LEN    8
-#define MAX_JSON_CONN_SIZE 100
+#define MAX_JSON_CONN_SIZE 150
 #define JSON_SIZE          64
+#define MAX_SERVICE_LEN    16
+#define MAX_STRMSG_SIZE    8
 
 
-template<typename T>
+template<typename T, unsigned int S = MAX_STRMSG_SIZE>
 using SensorCallback = T (*)();
 
-using ActuatorCallback = void (*)(String);
+using ActuatorCallb ack = void (*)(String);
 
 
 /*
@@ -23,11 +25,13 @@ using ActuatorCallback = void (*)(String);
 template<typename T>
 class MoodySensor {
     private:
+        const char* serviceName;
         AsyncWebServer sensorServer;
-        SensorCallback<T> sensorCallback;
+        SensorCallback<T, S> sensorCallback;
 
     public:
-        MoodySensor();
+        MoodySensor(String serviceName);
+        MoodySensor(const char* serviceName);
         void setAcquireFunction(SensorCallback<T> callback);
         void begin();
         void loop();
@@ -54,29 +58,37 @@ class MoodyActuator {
 */
 
 
-template<typename T>
-MoodySensor<T>::MoodySensor() : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr)
+template<typename T, unsigned int S>
+MoodySensor<T, S>::MoodySensor(String serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName.c_str())
 {
-    static_assert(std::is_integral<T>::value || std::is_same<T, String>::value || std::is_same<T, std::string>::value);
+    static_assert(std::is_arithmetic<T>::value && && S > 0 && S <= MAX_STRMSG_SIZE && char[MAX_STRMSG_SIZE]);
 }
 
 
-template<typename T>
-void MoodySensor<T>::setAcquireFunction(SensorCallback<T> callback)
+template<typename T, int S>
+MoodySensor<T, S>::MoodySensor(const char* serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName)
+{
+    static_assert(std::is_arithmetic<T>::value && && S > 0 && S <= MAX_STRMSG_SIZE && char[MAX_STRMSG_SIZE]);
+}
+
+
+template<typename T, unsigned int S>
+void MoodySensor<T, S>::setAcquireFunction(SensorCallback<T> callback)
 {
     sensorCallback = callback;
 }
 
 
-template<typename T>
-void MoodySensor<T>::begin()
+template<typename T, unsigned int S>
+void MoodySensor<T, S>::begin()
 {
-    sensorServer.on("/api/conn", HTTP_GET, [](AsyncWebServerRequest *request) {
+    sensorServer.on("/api/conn", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
         String mac = WiFi.macAddress();
         StaticJsonDocument<MAX_JSON_CONN_SIZE> jsonDoc;
 
         jsonDoc["type"] = "sensor";
+        jsonDoc["service"] = serviceName;
         jsonDoc["mac"] = mac;
         serializeJson(jsonDoc, resp);
 
@@ -85,11 +97,10 @@ void MoodySensor<T>::begin()
 
     sensorServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
-        StaticJsonDocument<JSON_SIZE> jsonDoc;
+        StaticJsonDocument<JSON_SIZE + S> jsonDoc;
         if(this->sensorCallback)
         {
             T sensorData = this->sensorCallback();
-            // if(sizeof(sensorData) > MAX_PAYLOAD_LEN)
             jsonDoc["payload"] = sensorData;
         }
         else
@@ -104,8 +115,8 @@ void MoodySensor<T>::begin()
 }
 
 
-template<typename T>
-void MoodySensor<T>::loop()
+template<typename T, unsigned int S>
+void MoodySensor<T, S>::loop()
 {
     WiFiManager.loop();
 }
