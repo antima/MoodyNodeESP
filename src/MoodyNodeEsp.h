@@ -8,14 +8,16 @@
 #define MAX_PAYLOAD_LEN    8
 #define MAX_JSON_CONN_SIZE 150
 #define JSON_SIZE          64
+#define PUT_JSON_SIZE      64
 #define MAX_SERVICE_LEN    16
 #define MAX_STRMSG_SIZE    8
 
 
-template<typename T, unsigned int S = MAX_STRMSG_SIZE>
+template<typename T>
 using SensorCallback = T (*)();
 
-using ActuatorCallb ack = void (*)(String);
+template<typename T>
+using ActuatorCallback = void (*)(T);
 
 
 /*
@@ -27,7 +29,7 @@ class MoodySensor {
     private:
         const char* serviceName;
         AsyncWebServer sensorServer;
-        SensorCallback<T, S> sensorCallback;
+        SensorCallback<T> sensorCallback;
 
     public:
         MoodySensor(String serviceName);
@@ -39,14 +41,17 @@ class MoodySensor {
 };
 
 
+template<typename T>
 class MoodyActuator {
     private:
+        const char* actuatorIdentifier;
         AsyncWebServer actuatorServer;
-        ActuatorCallback actuatorCallback;
+        ActuatorCallback<T> actuatorCallback;
 
     public:
-        MoodyActuator();
-        void setActuateFunction(ActuatorCallback callback);
+        MoodyActuator(String actuatorIdentifier);
+        MoodyActuator(const char* actuatorIdentifier);
+        void setActuateFunction(ActuatorCallback<T> callback);
         void begin();
         void loop();
         virtual ~MoodyActuator() {}
@@ -58,29 +63,29 @@ class MoodyActuator {
 */
 
 
-template<typename T, unsigned int S>
-MoodySensor<T, S>::MoodySensor(String serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName.c_str())
+template<typename T>
+MoodySensor<T>::MoodySensor(String serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName.c_str())
 {
-    static_assert(std::is_arithmetic<T>::value && && S > 0 && S <= MAX_STRMSG_SIZE && char[MAX_STRMSG_SIZE]);
+    static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
 
 
-template<typename T, int S>
-MoodySensor<T, S>::MoodySensor(const char* serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName)
+template<typename T>
+MoodySensor<T>::MoodySensor(const char* serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName)
 {
-    static_assert(std::is_arithmetic<T>::value && && S > 0 && S <= MAX_STRMSG_SIZE && char[MAX_STRMSG_SIZE]);
+    static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
 
 
-template<typename T, unsigned int S>
-void MoodySensor<T, S>::setAcquireFunction(SensorCallback<T> callback)
+template<typename T>
+void MoodySensor<T>::setAcquireFunction(SensorCallback<T> callback)
 {
     sensorCallback = callback;
 }
 
 
-template<typename T, unsigned int S>
-void MoodySensor<T, S>::begin()
+template<typename T>
+void MoodySensor<T>::begin()
 {
     sensorServer.on("/api/conn", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
@@ -97,7 +102,7 @@ void MoodySensor<T, S>::begin()
 
     sensorServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
-        StaticJsonDocument<JSON_SIZE + S> jsonDoc;
+        StaticJsonDocument<JSON_SIZE> jsonDoc;
         if(this->sensorCallback)
         {
             T sensorData = this->sensorCallback();
@@ -115,8 +120,8 @@ void MoodySensor<T, S>::begin()
 }
 
 
-template<typename T, unsigned int S>
-void MoodySensor<T, S>::loop()
+template<typename T>
+void MoodySensor<T>::loop()
 {
     WiFiManager.loop();
 }
@@ -126,18 +131,26 @@ void MoodySensor<T, S>::loop()
     Actuator implementation
 */
 
-MoodyActuator::MoodyActuator() : actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr)
+template<typename T>
+MoodyActuator<T>::MoodyActuator(String actuatorIdentifier) : actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier.c_str())
 {
+    static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
 
+template<typename T>
+MoodyActuator<T>::MoodyActuator(const char* actuatorIdentifier) : actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier)
+{
+    static_assert(std::is_arithmetic<T>::value, "T can only be a number");
+}
 
-void MoodyActuator::setActuateFunction(ActuatorCallback callback)
+template<typename T>
+void MoodyActuator<T>::setActuateFunction(ActuatorCallback<T> callback)
 {
     actuatorCallback = callback;
 }
 
-
-void MoodyActuator::begin()
+template<typename T>
+void MoodyActuator<T>::begin()
 {
     actuatorServer.on("/api/conn", HTTP_GET, [](AsyncWebServerRequest *request) {
         String resp;
@@ -151,15 +164,20 @@ void MoodyActuator::begin()
         request->send(200, "application/json", resp);
     });
 
-    actuatorServer.on("/api/data", HTTP_PUT, [this](AsyncWebServerRequest *request) {
-        // deserialize and actuate, check for string type of payload
+    actuatorServer.on("/api/data", HTTP_PUT, [this](AsyncWebServerRequest *request, JsonVariant &json) {
+        JsonObject& jsonObj = json.as<JsonObject>();
+        if(jsonObj.containsKey("payload"))
+        {
+            T payload = jsonObj["payload"].as<T>();
+            actuatorCallback(payload);
+        }
     });
 
     actuatorServer.begin();
 }
 
-
-void MoodyActuator::loop()
+template<typename T>
+void MoodyActuator<T>::loop()
 {
     WiFiManager.loop();
 }
