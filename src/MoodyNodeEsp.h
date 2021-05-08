@@ -1,5 +1,6 @@
 #include <EspWifiManager.h>
 #include <ArduinoJson.h>
+#include <AsyncJson.h>
 #include <ESPAsyncWebServer.h>
 
 #include <ArxTypeTraits.h>
@@ -44,6 +45,7 @@ class MoodySensor {
 template<typename T>
 class MoodyActuator {
     private:
+        T state;
         const char* actuatorIdentifier;
         AsyncWebServer actuatorServer;
         ActuatorCallback<T> actuatorCallback;
@@ -164,15 +166,33 @@ void MoodyActuator<T>::begin()
         request->send(200, "application/json", resp);
     });
 
-    actuatorServer.on("/api/data", HTTP_PUT, [this](AsyncWebServerRequest *request, JsonVariant &json) {
-        JsonObject& jsonObj = json.as<JsonObject>();
-        if(jsonObj.containsKey("payload"))
-        {
-            T payload = jsonObj["payload"].as<T>();
-            actuatorCallback(payload);
-        }
+    actuatorServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
+        String resp;
+        StaticJsonDocument<JSON_SIZE> jsonDoc;
+        jsonDoc["payload"] = state;
+        serializeJson(jsonDoc, resp);
+        request->send(200, "application/json", resp);
     });
 
+    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/data", [this](AsyncWebServerRequest *request, JsonVariant &json) {
+        String resp;
+        if(request->method() == HTTP_PUT)
+        {
+            JsonObject jsonObj = json.as<JsonObject>();
+            if(jsonObj.containsKey("payload"))
+            {
+                T payload = jsonObj["payload"].as<T>();
+                actuatorCallback(payload);
+                state = payload;
+            }
+            serializeJson(jsonObj, resp);
+            request->send(200, "application/json", resp);
+            return;
+        }
+        request->send(501, "text/plain", "");
+    });
+
+    actuatorServer.addHandler(handler);
     actuatorServer.begin();
 }
 
