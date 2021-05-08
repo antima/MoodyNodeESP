@@ -1,6 +1,6 @@
 # MoodyNodeEsp
 
-Build simple and ready to use applications on ESP devices, focusing only on the application logic. This is a battery-included library, with connection management capabilities (using the EspWifiManager lib by [antima.it](#https://github.com/antima/EspWifiManager)).
+Build simple and ready to use applications on ESP devices, focusing only on the application logic. This is a battery-included library, with connection management capabilities (using the EspWifiManager lib by [antima.it](#https://github.com/antima/EspWifiManager)), and a simple REST HTTP interface.
 
 This library is part of the Moody project.
 
@@ -8,6 +8,8 @@ This library is part of the Moody project.
   - [About](#about) 
   - [Installation](#installation-arduino-ide)
   - [How To](#how-to)
+    - [Interfacing with the devices](#interfacing-with-the-devices)
+    - [Simple examples](#simple-examples)
   - [License](#license)
 
 
@@ -18,6 +20,8 @@ You can build sensor and actuator applications by exploiting the MoodySensor and
 These classes are generic in the type of data that you acquire (sensor) or receive to actuate(actuator), which must be an arithmetic type. You can use the examples to understand the basic concepts of the library.
 
 The Wifi connection management capabilities included, automatically manage credentials by allowing the user to insert them via a web browser interface. They are then saved to the non -volatile memory available, in order to be retrieved later. This process uses the [EspWifiManager antima library](#https://github.com/antima/EspWifiManager#about).
+
+The device information is exposed through HTTP APIs. You can request a sensor reading, change an actuator state, read its state, request information about the device, all through HTTP endpoints. 
 
 ## Installation (Arduino IDE)
 
@@ -32,6 +36,23 @@ After installing these libraries, clone this repository into your Arduino librar
 If you want download the zip version, you can add it to your environment by clicking Sketch -> Include Library -> Add -> .ZIP Library... and selecting the zip file you just downloaded.
 
 ## How To
+
+### Interfacing with the devices
+
+Devices using this library expose a number of HTTP APIs through which an external actor can interact with them.
+
+A sensor node is reachable at the following endpoints:
+
+- **/api/conn [GET]**: a get to this endpoint returns data regarding the node type, the sensor service and its mac address, in json format.
+- **/api/data [GET]**: a get to this endpoint requests a sensor reading. The result of the operation is returned as a json message, in the **payload** field.
+
+An actuator node is reachable at the following endpoints:
+
+- **/api/conn [GET]**: a get to this endpoint returns data regarding the node type and its mac address, in json format.
+- **/api/data [GET]**: a get to this endpoint returns the current state of the actuator. The result of the operation is returned as a json message, in the **payload** field.
+- **/api/data [PUT]**: a put to this endpoint will result in a change of state inside the actuator, which in turn will actuate the received command. The new state is then returned as a json message, in the **payload** field.
+
+### Simple examples
 
 Basic sensor example:
 
