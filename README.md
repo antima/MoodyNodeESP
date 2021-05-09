@@ -27,6 +27,7 @@ The device information is exposed through HTTP APIs. You can request a sensor re
 
 MoodyNodeEsp depends on the following libraries:
 
+- [Arduino Json](https://github.com/bblanchon/ArduinoJson)
 - [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
   - [ESPAsyncTcp](https://github.com/me-no-dev/ESPAsyncTCP) (Dependency of ESPAsyncWebServer)
 - [EspWifiManager](https://github.com/antima/EspWifiManager)
@@ -37,6 +38,7 @@ To install these dependencies, you can clone the repositories in your Arduino/li
 ```bash
 cd /path/to/Arduino/libraries
 
+git clone https://github.com/bblanchon/ArduinoJson
 git clone https://github.com/me-no-dev/ESPAsyncWebServer
 git clone https://github.com/me-no-dev/ESPAsyncTCP
 git clone https://github.com/antima/EspWifiManager
