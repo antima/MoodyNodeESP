@@ -1,6 +1,6 @@
 # MoodyNodeEsp
 
-Build simple and ready to use applications on ESP devices, focusing only on the application logic. This is a battery-included library, with connection management capabilities (using the EspWifiManager lib by [antima.it](#https://github.com/antima/EspWifiManager)), and a simple REST HTTP interface.
+Build simple and ready to use applications on ESP devices, focusing only on the application logic. This is a battery-included library, with connection management capabilities (using the EspWifiManager lib by [antima.it](https://github.com/antima/EspWifiManager)), and a simple REST HTTP interface.
 
 This library is part of the Moody project.
 
@@ -19,21 +19,36 @@ You can build sensor and actuator applications by exploiting the MoodySensor and
 
 These classes are generic in the type of data that you acquire (sensor) or receive to actuate(actuator), which must be an arithmetic type. You can use the examples to understand the basic concepts of the library.
 
-The Wifi connection management capabilities included, automatically manage credentials by allowing the user to insert them via a web browser interface. They are then saved to the non -volatile memory available, in order to be retrieved later. This process uses the [EspWifiManager antima library](#https://github.com/antima/EspWifiManager#about).
+The Wifi connection management capabilities included, automatically manage credentials by allowing the user to insert them via a web browser interface. They are then saved to the non -volatile memory available, in order to be retrieved later. This process uses the [EspWifiManager antima library](https://github.com/antima/EspWifiManager#about).
 
 The device information is exposed through HTTP APIs. You can request a sensor reading, change an actuator state, read its state, request information about the device, all through HTTP endpoints. 
 
 ## Installation (Arduino IDE)
 
-This library depends on the following libraries (links included):
+MoodyNodeEsp depends on the following libraries:
 
-- [ESP Async WebServer](#https://github.com/me-no-dev/ESPAsyncWebServer/tree/master/examples)
-- [EspWifiManager](#https://github.com/antima/EspWifiManager)
-- [ArxTypeTraits](#https://github.com/hideakitai/ArxTypeTraits)
+- [ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
+  - [ESPAsyncTcp](https://github.com/me-no-dev/ESPAsyncTCP) (Dependency of ESPAsyncWebServer)
+- [EspWifiManager](https://github.com/antima/EspWifiManager)
+- [ArxTypeTraits](https://github.com/hideakitai/ArxTypeTraits)
 
-After installing these libraries, clone this repository into your Arduino libraries folder, or click download zip from the upper right corner of this github page if you want to have a release with the latest features.
+To install these dependencies, you can clone the repositories in your Arduino/libraries directory:
 
-If you want download the zip version, you can add it to your environment by clicking Sketch -> Include Library -> Add -> .ZIP Library... and selecting the zip file you just downloaded.
+```bash
+cd /path/to/Arduino/libraries
+
+git clone https://github.com/me-no-dev/ESPAsyncWebServer
+git clone https://github.com/me-no-dev/ESPAsyncTCP
+git clone https://github.com/antima/EspWifiManager
+git clone https://github.com/hideakitai/ArxTypeTraits
+```
+
+
+You can also install them by downloading the zip archives of the linked projects by clicking on the links, then on the **Code** button and on the **Download ZIP** button; you can then add them to your Arduino IDE environment you can add it to your environment by clicking Sketch -> Include Library -> Add -> .ZIP Library... and selecting the zip file you just downloaded.
+
+After installing everything, clone this repository into your Arduino libraries folder, 
+
+If you want download the zip version, you can click download zip from the upper right corner of this github page to obtain a release containing the latest features. You can then add it to your environment by clicking Sketch -> Include Library -> Add -> .ZIP Library... and selecting the zip file you just downloaded.
 
 ## How To
 
@@ -51,6 +66,7 @@ An actuator node is reachable at the following endpoints:
 - **/api/conn [GET]**: a get to this endpoint returns data regarding the node type and its mac address, in json format.
 - **/api/data [GET]**: a get to this endpoint returns the current state of the actuator. The result of the operation is returned as a json message, in the **payload** field.
 - **/api/data [PUT]**: a put to this endpoint will result in a change of state inside the actuator, which in turn will actuate the received command. The new state is then returned as a json message, in the **payload** field.
+- 
 
 ### Simple examples
 

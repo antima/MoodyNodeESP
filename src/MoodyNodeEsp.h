@@ -28,6 +28,7 @@ using ActuatorCallback = void (*)(T);
 template<typename T>
 class MoodySensor {
     private:
+        bool serverStarted;
         const char* serviceName;
         AsyncWebServer sensorServer;
         SensorCallback<T> sensorCallback;
@@ -46,6 +47,7 @@ template<typename T>
 class MoodyActuator {
     private:
         T state;
+        bool serverStarted;
         const char* actuatorIdentifier;
         AsyncWebServer actuatorServer;
         ActuatorCallback<T> actuatorCallback;
@@ -66,14 +68,14 @@ class MoodyActuator {
 
 
 template<typename T>
-MoodySensor<T>::MoodySensor(String serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName.c_str())
+MoodySensor<T>::MoodySensor(String serviceName) : serverStarted(false), sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName.c_str())
 {
     static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
 
 
 template<typename T>
-MoodySensor<T>::MoodySensor(const char* serviceName) : sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName)
+MoodySensor<T>::MoodySensor(const char* serviceName) : serverStarted(false), sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName)
 {
     static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
@@ -117,8 +119,6 @@ void MoodySensor<T>::begin()
         serializeJson(jsonDoc, resp);
         request->send(200, "application/json", resp);
     });
-
-    sensorServer.begin();
 }
 
 
@@ -126,6 +126,21 @@ template<typename T>
 void MoodySensor<T>::loop()
 {
     WiFiManager.loop();
+    if(WiFiManager.isConnected())
+    {
+        if(!serverStarted)
+        {
+            serverStarted = true;
+            sensorServer.begin();
+        }
+    }
+    else
+    {
+        if(serverStarted)
+        {
+            sensorServer.end();
+        }
+    }
 }
 
 
@@ -134,13 +149,13 @@ void MoodySensor<T>::loop()
 */
 
 template<typename T>
-MoodyActuator<T>::MoodyActuator(String actuatorIdentifier) : actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier.c_str())
+MoodyActuator<T>::MoodyActuator(String actuatorIdentifier) : serverStarted(false), actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier.c_str())
 {
     static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
 
 template<typename T>
-MoodyActuator<T>::MoodyActuator(const char* actuatorIdentifier) : actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier)
+MoodyActuator<T>::MoodyActuator(const char* actuatorIdentifier) : serverStarted(false), actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier)
 {
     static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
@@ -193,11 +208,25 @@ void MoodyActuator<T>::begin()
     });
 
     actuatorServer.addHandler(handler);
-    actuatorServer.begin();
 }
 
 template<typename T>
 void MoodyActuator<T>::loop()
 {
     WiFiManager.loop();
+    if(WiFiManager.isConnected())
+    {
+        if(!serverStarted)
+        {
+            serverStarted = true;
+            actuatorServer.begin();
+        }
+    }
+    else
+    {
+        if(serverStarted)
+        {
+            actuatorServer.end();
+        }
+    }
 }
