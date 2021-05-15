@@ -1,0 +1,46 @@
+{
+    "name": "MoodyNodeEsp",
+    "version": "0.0.1",
+    "description": "A library to build simple HTTP sensor/actuator apps on ESP",
+    "keywords": "sensor, actuator, moody",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/antima/MoodyNodeEsp.git"
+    },
+    "authors": [
+        {
+            "name": "Gianmarco Marcello",
+            "email": "g.marcello@antima.it",
+            "url": "https://mar.antima.it/",
+            "maintainer": true
+        }
+    ],
+    "license": "LGPL-2.1",
+    "homepage": "https://github.com/antima/MoodyNodeEsp",
+    "dependencies": [
+        {
+            "name": "ArduinoJson"
+        },
+        {
+            "name": "ESP Async WebServer",
+            "platforms": [
+                "espressif8266"
+            ]
+        },
+        {
+            "name": "ArxTypeTraits"
+        },
+        {
+            "name": "EspWifiManager",
+            "platforms": [
+                "espressif8266"
+            ]
+        },
+        {
+            "name": "ssdpAWS",
+            "version": "https://github.com/Abathargh/ssdpAWS"
+        }
+    ],
+    "frameworks": "arduino",
+    "platforms": "espressif8266"
+}

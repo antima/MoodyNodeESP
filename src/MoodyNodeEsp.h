@@ -1,9 +1,10 @@
-#include <EspWifiManager.h>
-#include <ArduinoJson.h>
+#include <ssdpAWS.h>
 #include <AsyncJson.h>
+#include <ArduinoJson.h>
+#include <ArxTypeTraits.h>
+#include <EspWifiManager.h>
 #include <ESPAsyncWebServer.h>
 
-#include <ArxTypeTraits.h>
 
 #define WEB_SERVER_PORT    80
 #define MAX_PAYLOAD_LEN    8
@@ -20,46 +21,91 @@ using SensorCallback = T (*)();
 template<typename T>
 using ActuatorCallback = void (*)(T);
 
+static char chipId[4];
+static const char modelName[] = "ESP8266";
+static const char modelNumber[] = "v0.0.1";
+static const char manufacturer[] = "Espressif";
+static const char manufacturerUrl[] = "https://www.espressif.com/";
 
 /*
     Sensor/Actuator APIs
 */
 
-template<typename T>
-class MoodySensor {
+class MoodyBase {
     private:
         bool serverStarted;
+
+    protected:
+        ssdpAWS ssdp;
         const char* serviceName;
-        AsyncWebServer sensorServer;
+        AsyncWebServer webServer;
+        
+        MoodyBase(const char* serviceName);
+        virtual void begin() = 0;
+    
+    public:
+        void loop();
+        virtual ~MoodyBase() {};
+};
+
+
+template<typename T>
+class MoodySensor: public MoodyBase {
+    private:
         SensorCallback<T> sensorCallback;
 
     public:
-        MoodySensor(String serviceName);
         MoodySensor(const char* serviceName);
         void setAcquireFunction(SensorCallback<T> callback);
-        void begin();
-        void loop();
+        void begin() override;
         virtual ~MoodySensor() {}
 };
 
 
 template<typename T>
-class MoodyActuator {
+class MoodyActuator: public MoodyBase {
     private:
         T state;
-        bool serverStarted;
-        const char* actuatorIdentifier;
-        AsyncWebServer actuatorServer;
         ActuatorCallback<T> actuatorCallback;
 
     public:
-        MoodyActuator(String actuatorIdentifier);
-        MoodyActuator(const char* actuatorIdentifier);
+        MoodyActuator(const char* serviceName);
         void setActuateFunction(ActuatorCallback<T> callback);
-        void begin();
-        void loop();
+        void begin() override;
         virtual ~MoodyActuator() {}
 };
+
+
+/*
+    Base implementation
+*/
+
+MoodyBase::MoodyBase(const char* serviceName) : ssdp(nullptr), serverStarted(false), 
+    serviceName(serviceName), webServer(WEB_SERVER_PORT) 
+{
+    ssdp = ssdpAWS(&webServer);
+}
+
+
+void MoodyBase::loop()
+{
+    WiFiManager.loop();
+    if(WiFiManager.isConnected())
+    {
+        if(!serverStarted)
+        {
+            serverStarted = true;
+            webServer.begin();
+        }
+    }
+    else
+    {
+        if(serverStarted)
+        {
+            webServer.end();
+        }
+    }
+}
 
 
 /*
@@ -68,14 +114,7 @@ class MoodyActuator {
 
 
 template<typename T>
-MoodySensor<T>::MoodySensor(String serviceName) : serverStarted(false), sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName.c_str())
-{
-    static_assert(std::is_arithmetic<T>::value, "T can only be a number");
-}
-
-
-template<typename T>
-MoodySensor<T>::MoodySensor(const char* serviceName) : serverStarted(false), sensorServer(WEB_SERVER_PORT), sensorCallback(nullptr), serviceName(serviceName)
+MoodySensor<T>::MoodySensor(const char* serviceName) : MoodyBase(serviceName), sensorCallback(nullptr)
 {
     static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
@@ -91,7 +130,10 @@ void MoodySensor<T>::setAcquireFunction(SensorCallback<T> callback)
 template<typename T>
 void MoodySensor<T>::begin()
 {
-    sensorServer.on("/api/conn", HTTP_GET, [this](AsyncWebServerRequest *request) {
+    snprintf(chipId, sizeof(chipId), "%u", ESP.getChipId());
+    ssdp.begin(serviceName, chipId, modelName, modelNumber, manufacturer, manufacturerUrl);
+
+    webServer.on("/api/conn", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
         String mac = WiFi.macAddress();
         StaticJsonDocument<MAX_JSON_CONN_SIZE> jsonDoc;
@@ -104,7 +146,7 @@ void MoodySensor<T>::begin()
         request->send(200, "application/json", resp);
     });
 
-    sensorServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
+    webServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
         StaticJsonDocument<JSON_SIZE> jsonDoc;
         if(this->sensorCallback)
@@ -122,43 +164,17 @@ void MoodySensor<T>::begin()
 }
 
 
-template<typename T>
-void MoodySensor<T>::loop()
-{
-    WiFiManager.loop();
-    if(WiFiManager.isConnected())
-    {
-        if(!serverStarted)
-        {
-            serverStarted = true;
-            sensorServer.begin();
-        }
-    }
-    else
-    {
-        if(serverStarted)
-        {
-            sensorServer.end();
-        }
-    }
-}
-
-
 /*
     Actuator implementation
 */
 
+
 template<typename T>
-MoodyActuator<T>::MoodyActuator(String actuatorIdentifier) : serverStarted(false), actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier.c_str())
+MoodyActuator<T>::MoodyActuator(const char* serviceName) : MoodyBase(serviceName), actuatorCallback(nullptr)
 {
     static_assert(std::is_arithmetic<T>::value, "T can only be a number");
 }
 
-template<typename T>
-MoodyActuator<T>::MoodyActuator(const char* actuatorIdentifier) : serverStarted(false), actuatorServer(WEB_SERVER_PORT), actuatorCallback(nullptr), actuatorIdentifier(actuatorIdentifier)
-{
-    static_assert(std::is_arithmetic<T>::value, "T can only be a number");
-}
 
 template<typename T>
 void MoodyActuator<T>::setActuateFunction(ActuatorCallback<T> callback)
@@ -166,10 +182,15 @@ void MoodyActuator<T>::setActuateFunction(ActuatorCallback<T> callback)
     actuatorCallback = callback;
 }
 
+
 template<typename T>
 void MoodyActuator<T>::begin()
 {
-    actuatorServer.on("/api/conn", HTTP_GET, [](AsyncWebServerRequest *request) {
+    snprintf(chipId, sizeof(chipId), "%u", ESP.getChipId());
+    ssdp.begin(serviceName, chipId, modelName, modelNumber, manufacturer, manufacturerUrl);
+
+    
+    webServer.on("/api/conn", HTTP_GET, [](AsyncWebServerRequest *request) {
         String resp;
         String mac = WiFi.macAddress();
         StaticJsonDocument<MAX_JSON_CONN_SIZE> jsonDoc;
@@ -181,7 +202,7 @@ void MoodyActuator<T>::begin()
         request->send(200, "application/json", resp);
     });
 
-    actuatorServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
+    webServer.on("/api/data", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
         StaticJsonDocument<JSON_SIZE> jsonDoc;
         jsonDoc["payload"] = state;
@@ -207,26 +228,5 @@ void MoodyActuator<T>::begin()
         request->send(501, "text/plain", "");
     });
 
-    actuatorServer.addHandler(handler);
-}
-
-template<typename T>
-void MoodyActuator<T>::loop()
-{
-    WiFiManager.loop();
-    if(WiFiManager.isConnected())
-    {
-        if(!serverStarted)
-        {
-            serverStarted = true;
-            actuatorServer.begin();
-        }
-    }
-    else
-    {
-        if(serverStarted)
-        {
-            actuatorServer.end();
-        }
-    }
+    webServer.addHandler(handler);
 }

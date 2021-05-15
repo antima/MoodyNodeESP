@@ -6,7 +6,9 @@ This library is part of the Moody project.
 
 ## Contents
   - [About](#about) 
-  - [Installation](#installation-arduino-ide)
+  - [Installation](#installation)
+    - [PlatformIO](#platformio)
+    - [Arduino IDE](#arduino-ide)
   - [How To](#how-to)
     - [Interfacing with the devices](#interfacing-with-the-devices)
     - [Simple examples](#simple-examples)
@@ -23,7 +25,26 @@ The Wifi connection management capabilities included, automatically manage crede
 
 The device information is exposed through HTTP APIs. You can request a sensor reading, change an actuator state, read its state, request information about the device, all through HTTP endpoints. 
 
-## Installation (Arduino IDE)
+## Installation
+
+Add the library dependency to your platformio.ini. This is the preferred way to use the library, it's that easy!
+
+### PlatformIO
+
+```ini
+[env:esp01_1m]
+platform = espressif8266
+board = esp01_1m
+framework = arduino
+
+lib_deps = abathargh/MoodyNodeEsp
+
+# or
+
+lib_deps = https://github.com/antima/MoodyNodeEsp.git
+```
+
+### Arduino IDE
 
 MoodyNodeEsp depends on the following libraries:
 
