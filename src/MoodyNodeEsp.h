@@ -94,6 +94,8 @@ void MoodyBase::loop()
     {
         if(!serverStarted)
         {
+            snprintf(chipId, sizeof(chipId), "%u", ESP.getChipId());
+            ssdp.begin(serviceName, chipId, modelName, modelNumber, manufacturer, manufacturerUrl);
             serverStarted = true;
             webServer.begin();
         }
@@ -130,9 +132,6 @@ void MoodySensor<T>::setAcquireFunction(SensorCallback<T> callback)
 template<typename T>
 void MoodySensor<T>::begin()
 {
-    snprintf(chipId, sizeof(chipId), "%u", ESP.getChipId());
-    ssdp.begin(serviceName, chipId, modelName, modelNumber, manufacturer, manufacturerUrl);
-
     webServer.on("/api/conn", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
         String mac = WiFi.macAddress();
@@ -186,16 +185,13 @@ void MoodyActuator<T>::setActuateFunction(ActuatorCallback<T> callback)
 template<typename T>
 void MoodyActuator<T>::begin()
 {
-    snprintf(chipId, sizeof(chipId), "%u", ESP.getChipId());
-    ssdp.begin(serviceName, chipId, modelName, modelNumber, manufacturer, manufacturerUrl);
-
-    
-    webServer.on("/api/conn", HTTP_GET, [](AsyncWebServerRequest *request) {
+    webServer.on("/api/conn", HTTP_GET, [this](AsyncWebServerRequest *request) {
         String resp;
         String mac = WiFi.macAddress();
         StaticJsonDocument<MAX_JSON_CONN_SIZE> jsonDoc;
 
         jsonDoc["type"] = "actuator";
+        jsonDoc["service"] = serviceName;
         jsonDoc["mac"] = mac;
         serializeJson(jsonDoc, resp);
 
