@@ -89,7 +89,6 @@ An actuator node is reachable at the following endpoints:
 - **/api/conn [GET]**: a get to this endpoint returns data regarding the node type and its mac address, in json format.
 - **/api/data [GET]**: a get to this endpoint returns the current state of the actuator. The result of the operation is returned as a json message, in the **payload** field.
 - **/api/data [PUT]**: a put to this endpoint will result in a change of state inside the actuator, which in turn will actuate the received command. The new state is then returned as a json message, in the **payload** field.
-- 
 
 ### Simple examples
 
