@@ -7,12 +7,8 @@
 
 
 #define WEB_SERVER_PORT    80
-#define MAX_PAYLOAD_LEN    8
 #define MAX_JSON_CONN_SIZE 150
 #define JSON_SIZE          64
-#define PUT_JSON_SIZE      64
-#define MAX_SERVICE_LEN    16
-#define MAX_STRMSG_SIZE    8
 
 
 template<typename T>
@@ -33,19 +29,19 @@ static const char manufacturerUrl[] = "https://www.espressif.com/";
 
 class MoodyBase {
     private:
-        bool serverStarted;
+        bool serverStarted = false;
 
     protected:
-        ssdpAWS ssdp;
+        AsyncWebServer webServer{WEB_SERVER_PORT};
+        ssdpAWS ssdp{&webServer};
         const char* serviceName;
-        AsyncWebServer webServer;
-        
-        MoodyBase(const char* serviceName);
+
+        explicit MoodyBase(const char* serviceName);
         virtual void begin() = 0;
     
     public:
         void loop();
-        virtual ~MoodyBase() {};
+        virtual ~MoodyBase() = default;
 };
 
 
@@ -55,10 +51,10 @@ class MoodySensor: public MoodyBase {
         SensorCallback<T> sensorCallback;
 
     public:
-        MoodySensor(const char* serviceName);
+        explicit MoodySensor(const char* serviceName);
         void setAcquireFunction(SensorCallback<T> callback);
         void begin() override;
-        virtual ~MoodySensor() {}
+        ~MoodySensor() override = default;
 };
 
 
@@ -69,10 +65,10 @@ class MoodyActuator: public MoodyBase {
         ActuatorCallback<T> actuatorCallback;
 
     public:
-        MoodyActuator(const char* serviceName);
+        explicit MoodyActuator(const char* serviceName);
         void setActuateFunction(ActuatorCallback<T> callback);
         void begin() override;
-        virtual ~MoodyActuator() {}
+        ~MoodyActuator() override = default;
 };
 
 
@@ -80,11 +76,7 @@ class MoodyActuator: public MoodyBase {
     Base implementation
 */
 
-MoodyBase::MoodyBase(const char* serviceName) : ssdp(nullptr), serverStarted(false), 
-    serviceName(serviceName), webServer(WEB_SERVER_PORT) 
-{
-    ssdp = ssdpAWS(&webServer);
-}
+MoodyBase::MoodyBase(const char* serviceName) : serviceName(serviceName) {}
 
 
 void MoodyBase::loop()
@@ -206,7 +198,7 @@ void MoodyActuator<T>::begin()
         request->send(200, "application/json", resp);
     });
 
-    AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/api/data", [this](AsyncWebServerRequest *request, JsonVariant &json) {
+    auto* handler = new AsyncCallbackJsonWebHandler("/api/data", [this](AsyncWebServerRequest *request, JsonVariant &json) {
         String resp;
         if(request->method() == HTTP_PUT)
         {
