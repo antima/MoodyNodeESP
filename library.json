@@ -1,6 +1,6 @@
 {
     "name": "MoodyNodeEsp",
-    "version": "0.0.1",
+    "version": "0.1.1",
     "description": "A library to build simple HTTP sensor/actuator apps on ESP",
     "keywords": "sensor, actuator, moody",
     "repository": {
